@@ -51,9 +51,18 @@ defmodule AshPhoenix.Test.Comment do
 
     attribute(:featured, :boolean, default: false, public?: true)
     attribute(:text, :string, allow_nil?: false, public?: true)
+    attribute(:meta, AshPhoenix.Test.EmbeddedArgument, allow_nil?: true, public?: true)
+    attribute(:embeds, AshPhoenix.Test.EmbeddedArgument, public?: true)
+    attribute(:status, :atom, public?: true)
+    attribute(:commented_at, :date, public?: true)
   end
 
   relationships do
     belongs_to(:post, AshPhoenix.Test.Post)
+  end
+
+  validations do
+    validate present([:commented_at]),
+      where: [present([:status]), attribute_equals(:status, :complete)]
   end
 end

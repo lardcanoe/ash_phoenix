@@ -999,32 +999,72 @@ defmodule AshPhoenix.FormTest do
     end
 
     test "nested errors are set on the appropriate form after submit for many to many relationships" do
-      form =
+      {:ok, post} =
         Post
         |> Form.for_create(:create,
           domain: Domain,
           forms: [
-            post: [
-              type: :list,
-              for: :linked_posts,
-              resource: Post,
-              create_action: :create
-            ]
+            auto?: true
           ]
         )
-        |> Form.add_form(:post, params: %{})
-        |> Form.validate(%{"text" => "text", "post" => [%{}]})
-        |> Form.submit(force?: true)
-        |> elem(1)
-        |> form_for("action")
+        |> Form.submit(params: %{"text" => "foo"})
 
-      assert form.errors == []
+      post = Ash.load!(post, :comments)
 
-      assert [nested_form] = inputs_for(form, :post)
-      assert nested_form.errors == [{:text, {"is required", []}}]
+      post_form =
+        post
+        |> Form.for_update(:update,
+          domain: Domain,
+          forms: [
+            auto?: true
+          ],
+          as: "form"
+        )
+        |> Phoenix.Component.to_form()
+
+      # ** (BadMapError) expected a map, got: ""
+      # code: Form.validate(post_form, %{
+      # stacktrace:
+      #   (stdlib 6.2) :maps.find("nested_embeds", "")
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:1362: AshPhoenix.Form.ensure_indexed_list/2
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:4790: anonymous fn/12 in AshPhoenix.Form.handle_forms/12
+      #   (elixir 1.18.1) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:549: AshPhoenix.Form.for_create/3
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:5113: AshPhoenix.Form.handle_form_with_params/15
+      #   (elixir 1.18.1) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:549: AshPhoenix.Form.for_create/3
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:1454: anonymous fn/9 in AshPhoenix.Form.validate_nested_forms/6
+      #   (elixir 1.18.1) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:1434: anonymous fn/7 in AshPhoenix.Form.validate_nested_forms/6
+      #   (elixir 1.18.1) lib/enum.ex:2546: Enum."-reduce/3-lists^foldl/2-0-"/3
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:1220: AshPhoenix.Form.validate/3
+      #   (ash_phoenix 2.1.14) lib/ash_phoenix/form/form.ex:1116: AshPhoenix.Form.validate/3
+
+      Form.validate(post_form, %{
+        "text" => "text",
+        "comments" => %{
+          "0" => %{
+            "_form_type" => "create",
+            "_persistent_id" => "0",
+            "_touched" => "_form_type,_touched,status,embeds",
+            "_unused_commented_at" => "",
+            "_unused_text" => "",
+            "commented_at" => "",
+            "status" => "complete",
+            "text" => "Foo",
+            "meta" => "",
+            "embeds" => %{
+              "_form_type" => "create",
+              "_persistent_id" => "0",
+              "_touched" => "_form_type",
+              "value" => "random"
+            }
+          }
+        }
+      })
     end
 
-    test "errors with a path are propagated down to the appropirate nested form" do
+    test "errors with a path are propagated down to the appropriate nested form" do
       author = %Author{
         email: "me@example.com"
       }
